@@ -9,7 +9,6 @@ td { horizontal-align: middle; vertical-align: middle; }
 </head>
 <body>
 <script language="javascript">
-<!--
 
 function $(id) {
 	return document.getElementById(id);
@@ -185,8 +184,8 @@ function collectFirsts4(development, nonterminalFirsts) {
 			var first = firsts[symbol][k];
 			
 			epsilonInSymbolFirsts |= first == EPSILON;
-			
-			result |= addUnique(first, nonterminalFirsts);
+			if(first !== EPSILON)
+				result |= addUnique(first, nonterminalFirsts);
 		}
 		
 		if (!epsilonInSymbolFirsts) {
@@ -223,8 +222,8 @@ function collectFirsts3(sequence) {
 			var first = firsts[symbol][k];
 			
 			epsilonInSymbolFirsts |= first == EPSILON;
-			
-			addUnique(first, result);
+			if(first !== EPSILON)
+				addUnique(first, result);
 		}
 		
 		epsilonInSymbolFirsts |= firsts[symbol] == undefined || firsts[symbol].length == 0;
@@ -513,8 +512,6 @@ F -> id
 </td></tr></tbody></table>
 </body>
 <script language="javascript">
-<!--
 grammarChanged();
-// -->
 </script>
 </html>

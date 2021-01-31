@@ -77,8 +77,8 @@ function Grammar(text) {
 				var first = this.firsts[symbol][k];
 				
 				epsilonInSymbolFirsts |= first == EPSILON;
-				
-				addUnique(first, result);
+				if(first !== EPSILON)
+					addUnique(first, result);
 			}
 			
 			epsilonInSymbolFirsts |= this.firsts[symbol] == undefined || this.firsts[symbol].length == 0;
@@ -203,8 +203,8 @@ function Grammar(text) {
 				var first = grammar.firsts[symbol][k];
 				
 				epsilonInSymbolFirsts |= first == EPSILON;
-				
-				result |= addUnique(first, nonterminalFirsts);
+				if(first !== EPSILON)
+					result |= addUnique(first, nonterminalFirsts);
 			}
 			
 			if (!epsilonInSymbolFirsts) {
