@@ -1,0 +1,223 @@
+<!--
+/*
+ *  The MIT License
+ * 
+ *  Copyright 2011 Greg.
+ * 
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ * 
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ * 
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
+-->
+<html>
+<head>
+<title>LALR(1) Parser Generator</title>
+<style>
+body { background-color: #F0F0F0; }
+body * { font-family:courier; }
+td { horizontal-align: middle; vertical-align: top; white-space: nowrap; }
+th { white-space: nowrap; }
+</style>
+<script language="javascript" src="js/underscore.js"></script>
+<script language="javascript" src="js/tools.js"></script>
+<script language="javascript" src="js/grammar.js"></script>
+<script language="javascript" src="js/grammarview.js"></script>
+<script language="javascript" src="js/lalr1item.js"></script>
+<script language="javascript" src="js/lrclosuretable.js"></script>
+<script language="javascript" src="js/lrclosuretableview.js"></script>
+<script language="javascript" src="js/tree.js"></script>
+<script language="javascript" src="js/treeview.js"></script>
+<script language="javascript" src="js/lrtable.js"></script>
+<script language="javascript" src="js/lrtableview.js"></script>
+<script language="javascript" src="js/lrparseview.js"></script>
+</head>
+<body>
+<script language="javascript">
+<!--
+
+var lrTable;
+
+function grammarChanged() {
+	displayRuleIndices();
+	
+	var grammar = new Grammar($('grammar').value);
+	var lrClosureTable = new LRClosureTable(grammar);
+	lrTable = new LRTable(lrClosureTable);
+
+	$('firstFollowView').innerHTML = formatFirstFollow(grammar);
+	$('lrClosureTableView').innerHTML = formatLRClosureTable(lrClosureTable);
+	$('lrTableView').innerHTML = formatLRTable(lrTable);
+	
+	parseInput();
+}
+
+// -->
+</script>
+<table><tbody><tr><td>
+	<div id="grammarView"></div>
+	<br>
+	<div id="firstFollowView"></div>
+</td><td>
+	<br>
+	<input type="button" value="&gt;&gt;">
+</td><td>
+	<div style="height: 100%; overflow: auto;">
+		<div id="lrClosureTableView"></div>
+		<br><hr><br>
+		<table border="1" cellpadding="8"><tbody><tr><td>
+			<div id="lrTableView"></div>
+			</td><td>
+			<div id="lrParseView"></div>
+		</td></tr></tbody></table>
+	</div>
+</td></tr></tbody></table>
+</body>
+<script language="javascript">
+<!--
+
+// <TEST>
+
+{
+	/*
+	 * (0) A' -> A
+	 * (1) A -> a A
+	 * (2) A -> a
+	 *
+	 * FIRST(A') = { a }
+	 * FIRST(A) = { a }
+	 */
+	var grammar = new Grammar('A\' -> A\nA -> a A\nA -> a');
+	
+	assertEquality('A\'', grammar.axiom);
+	assertEquality(3, grammar.rules.length);
+	assertEquality(['a'].toString(), grammar.firsts['A'].toString());
+	
+	assertEquals(new Item(new Rule(grammar, 'A -> a A'), 1), new Item(new Rule(grammar, 'A -> a A'), 1));
+	assertEquality(0, indexOfUsingEquals(new Item(new Rule(grammar, 'A -> a A'), 1), [new Item(new Rule(grammar, 'A -> a A'), 1)]));
+	
+	/*
+	 *              closure { [A' -> .A, $] }               = 0 = { [A' -> .A, $]; [A -> .a A, $]; [A -> .a, $] }
+	 * goto(0, A) = closure { [A' -> A., $] }               = 1 = { [A' -> A., $] }
+	 * goto(0, a) = closure { [A -> a.A, $]; [A -> a., $] } = 2 = { [A -> a.A, $]; [A -> a., $]; [A -> .a A, $]; [A -> .a, $] }
+	 * goto(2, A) = closure { [A -> a A., $] }              = 3 = { [A -> a A., $] }
+	 * goto(2, a) = closure { [A -> a.A, $]; [A -> a., $] } = 2
+	 */
+	var lrClosureTable = new LRClosureTable(grammar);
+	
+	assertEquality(3, lrClosureTable.kernels[0].closure.length);
+	assertEquality(4, lrClosureTable.kernels.length);
+	
+	/*
+	 *   a  $  A' A
+	 * 0 s2       1
+	 * 1    r0
+	 * 2    r2    3
+	 * 3 s2 r1
+	 */
+	var lrTable = new LRTable(lrClosureTable);
+	
+	assertEquality(4, lrTable.states.length);
+	assertEquality('s2', lrTable.states[0]['a']);
+	assertEquality('r0', lrTable.states[1]['$']);
+	assertEquality('r2', lrTable.states[2]['$']);
+	assertEquality('3', lrTable.states[2]['A']);
+	assertEquality('r1', lrTable.states[3]['$']);
+}
+
+{
+	/*
+	 * (0) A' -> A
+	 * (1) A -> B
+	 * (2) A -> ''
+	 * (3) B -> ( A )
+	 *
+	 * FIRST(A') = { '', ( }
+	 * FIRST(A) = { '', ( }
+	 * FIRST(B) = { ( }
+	 */
+	var grammar = new Grammar('A\' -> A\nA -> B\nA -> \'\'\nB -> ( A )');
+	
+	assertEquality('A\'', grammar.axiom);
+	assertEquality(4, grammar.rules.length);
+	assertEquality([EPSILON, '('].toString(), grammar.firsts['A'].toString());
+	assertEquality('[A -> .b, ]', new Item(new Rule(grammar, 'A -> b'), 0).toString());
+	
+	/*
+	 *              closure { [A' -> .A, $] }      =  0 = { [A' -> .A, $]; [A -> .B, $]; [A -> ., $]; [B -> .( A ), $] }
+	 * goto(0, A) = closure { [A' -> A., $] }      =  1 = { [A' -> A., $] }
+	 * goto(0, B) = closure { [A -> B., $/)] }     =  2 = { [A -> B., $/)] }
+	 * goto(0, () = closure { [B -> (.A ), $/)] }  =  3 = { [B -> (.A ), $/)]; [A -> .B, )]; [A -> ., )]; [B -> .( A ), )] }
+	 * goto(3, A) = closure { [B -> ( A.), $] }    =  4 = { [B -> ( A.), $] }
+	 * goto(3, B) = closure { [A -> B., )] }       -> 2
+	 * goto(3, () = closure { [B -> (.A ), )] }    -> 3
+	 * goto(4, )) = closure { [B -> ( A )., $/)] } =  5 = { [B -> ( A )., $/)] }
+	 */
+	var lrClosureTable = new LRClosureTable(grammar);
+	
+	assertEquality(4, lrClosureTable.kernels[0].closure.length);
+	assertEquality(6, lrClosureTable.kernels.length);
+	
+	/*
+	 *   (  )  $  A' A B
+	 * 0 s3    r2    1 2
+	 * 1       r0
+	 * 2    r1 r1
+	 * 3 s3 r2       4 2
+	 * 4    s5
+	 * 5    r3 r3
+	 */
+	var lrTable = new LRTable(lrClosureTable);
+	
+	assertEquality(6, lrTable.states.length);
+	assertEquality('s3', lrTable.states[0]['(']);
+	assertEquality('r2', lrTable.states[0]['$']);
+	assertEquality('1', lrTable.states[0]['A']);
+	assertEquality('2', lrTable.states[0]['B']);
+	assertEquality('r0', lrTable.states[1]['$']);
+	assertEquality('r1', lrTable.states[2][')']);
+	assertEquality('r1', lrTable.states[2]['$']);
+	assertEquality('s3', lrTable.states[3]['(']);
+	assertEquality('r2', lrTable.states[3][')']);
+	assertEquality('4', lrTable.states[3]['A']);
+	assertEquality('2', lrTable.states[3]['B']);
+	assertEquality('r3', lrTable.states[5][')']);
+	assertEquality('r3', lrTable.states[5]['$']);
+}
+
+// </TEST>
+
+// <INITIALIZATION>
+
+{
+	var grammar = new Grammar('S\' -> S\n\
+S -> C C\n\
+C -> c C\n\
+C -> d');
+
+	$('grammarView').innerHTML = formatGrammar(grammar);
+}
+
+$('lrParseView').innerHTML = formatInitialParseView('c d d', 100);
+
+grammarChanged();
+
+// </INITIALIZATION>
+
+// -->
+</script>
+</body>
+</html>

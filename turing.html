@@ -1,0 +1,252 @@
+<!--
+/*
+ *  The MIT License
+ * 
+ *  Copyright 2011 Greg.
+ * 
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ * 
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ * 
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
+-->
+<html>
+<head>
+<title>Turing Machine</title>
+<style>
+body * { font-family:courier; font-size:20pt; }
+td { horizontal-align: middle; vertical-align: middle; }
+</style>
+</head>
+<body onmousedown="showExample('-<br>-');">
+<span style="visibility:hidden;" id="tmp"></span>
+<script language="javascript">
+<!--
+	var START = '&gt;';
+	
+	var BLANK = '#';
+	
+	var LEFT = '<-';
+	
+	var RIGHT = '->';
+
+	function $(id) {
+		return document.getElementById(id);
+	}
+	
+	function showExample(example) {
+		$('exBox').innerHTML=example;
+	}
+	
+	function resize(textInput) {
+		textInput.size = Math.max(1, textInput.value.length);
+	}
+	
+	function updateAllStates() {
+		var nonhaltingStates = $('nonhaltingStates').value;
+		var haltingStates = $('haltingStates').value;
+		
+		$('allStates').innerHTML = nonhaltingStates + (nonhaltingStates.trim() != '' && haltingStates.trim() != '' ? ', ' : '') + haltingStates;
+		
+		updateTransitions();
+		
+		var allStates = $('allStates').innerHTML.split(',');
+		
+		if ($('initialState').value.trim() == '' && 0 < allStates.length) {
+			$('initialState').value = nonhaltingStates.split(',')[0].trim();
+		}
+	}
+	
+	function makeInput(id, examples, value, onchange) {
+		return "<input onfocus=\"showExample('" + examples + "');\" type=\"text\" id=\"" + id + "\" size=\"" + Math.max(1, value.length) + "\" onkeyup=\"resize(this)\" value=\"" + value + "\" onchange=\"" + onchange + "\">";
+	}
+	
+	function refactorAlphabetSymbol(symbol, alphabet) {
+		for (var i in alphabet) {
+			if (symbol.trim() == alphabet[i].trim()) {
+				return symbol.trim();
+			}
+		}
+		
+		for (var i in oldAlphabet) {
+			if (symbol.trim() == oldAlphabet[i].trim() && i < alphabet.length) {
+				return alphabet[i].trim();
+			}
+		}
+		
+		return symbol.trim();
+	}
+	
+	function refactorState(state, allStates) {
+		for (var i in allStates) {
+			if (state.trim() == allStates[i].trim()) {
+				return state.trim();
+			}
+		}
+		
+		for (var i in oldStates) {
+			if (state.trim() == oldStates[i].trim() && i < allStates.length) {
+				return allStates[i].trim();
+			}
+		}
+		
+		return state.trim();
+	}
+	
+	function updateTransitions() {
+		var nonhaltingStates = $('nonhaltingStates').value.split(',');
+		var allStates = $('allStates').innerHTML.split(',');
+		var alphabet = [START, BLANK].concat($('alphabet').value.split(','));
+		
+		$('initialState').value = refactorState($('initialState').value, allStates);
+
+		var i = 0;
+		
+		for (var j in nonhaltingStates) {
+			var q = nonhaltingStates[j].trim();
+			if (q != '') {
+				for (var k in alphabet) {
+					var a = alphabet[k].trim();
+					
+					if (a != '') {
+						if (i < oldTransitionCount) {
+							$('transitionInputState' + i).innerHTML = q;
+							$('transitionInputSymbol' + i).innerHTML = a;
+							$('transitionOutputState' + i).value = refactorState($('transitionOutputState' + i).value, allStates);
+							$('transitionOutputSymbol' + i).value = refactorAlphabetSymbol($('transitionOutputSymbol' + i).value, alphabet);
+						} else {
+							$('transitions').innerHTML +="\
+	<tr id=\"transition" + i + "\">\
+		<td id=\"transitionInputState" + i + "\">" + q + "</td>\
+		<td id=\"transitionInputSymbol" + i + "\">" + a + "</td>\
+		<td>(" + makeInput('transitionOutputState' + i, 's<br>q1', a == START ? q : '', 'updateTransitionResults();') + ",\
+		" + makeInput('transitionOutputSymbol' + i, RIGHT + '<br>a', a == START ? RIGHT : '', 'updateTransitionResults();') + ")</td>\
+	</tr>\
+";
+						}
+						
+						++i;
+					}
+				}
+			}
+		}
+		
+		for (var j = i; j < oldTransitionCount; ++j) {
+			var transition = $('transition' + j);
+			
+			transition.parentNode.removeChild(transition);
+		}
+		
+		oldTransitionCount = i;
+		oldAlphabet = alphabet;
+		oldStates = allStates;
+		
+		updateTransitionResults();
+	}
+	
+	function updateTransitionResults() {
+		for (var i = 0; i < oldTransitionCount; ++i) {
+			if ($('transitionOutputState' + i).value == '' || $('transitionOutputSymbol' + i).value == '') {
+				return;
+			}
+		}
+		
+		var state = $('initialState').value;
+		
+		if (state == '') {
+			return;
+		}
+		
+		var ribbon = ['&gt;'].concat($('initialRibbonLeft').value.split(''), $('initialRibbonRight').value.split(''));
+		var index = $('initialRibbonLeft').value.length;
+		$('transitionResults').innerHTML = '';
+		
+		for (var i = 0; i < parseInt($('maximumStepCount').value) && !isHalting(state); ++i) {
+			$('tmp').innerHTML = index < ribbon.length ? ribbon[index] : BLANK;
+			var j = findTransitionIndex(state, $('tmp').innerHTML);
+			
+			state = $('transitionOutputState' + j).value.trim();
+			symbol = $('transitionOutputSymbol' + j).value.trim();
+			
+			if (symbol == LEFT) {
+				--index;
+			} else if (symbol == RIGHT) {
+				++index;
+			} else {
+				ribbon[index] = symbol;
+			}
+			
+			while (ribbon.length <= index) {
+				ribbon[ribbon.length] = BLANK;
+			}
+			
+			$('transitionResults').innerHTML += "<br>(" + state + ", " + ribbon.slice(0, index).join('') + "<u>" + ribbon[index] + "</u>" + ribbon.slice(index + 1).join('') + ")";
+		}
+	}
+	
+	function isHalting(state) {
+		var haltingStates = $('haltingStates').value.split(',');
+		
+		for (var i in haltingStates) {
+			if (state == haltingStates[i]) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	function findTransitionIndex(state, symbol) {
+		for (var i = 0; i < oldTransitionCount; ++i) {
+			if (state == $('transitionInputState' + i).innerHTML && symbol == $('transitionInputSymbol' + i).innerHTML) {
+				return i;
+			}
+		}
+		
+		return -1;
+	}
+	
+	var oldTransitionCount = 0;
+	
+	var oldAlphabet = [START, BLANK];
+	
+	var oldStates = [];
+	
+//-->
+</script>
+<table><tr><td>Examples:</td><td id="exBox">-<br>-</td></tr></table>
+<p>Alphabet: &Sigma; = {&gt;, #, <input onfocus="showExample('a<br>a, b, c');" type="text" id="alphabet" size="1" onkeyup="resize(this);" onchange="updateTransitions();">}</p>
+<table>
+<tr><td>
+Nonhalting states: {<input onfocus="showExample('s<br>q0, q1');" type="text" id="nonhaltingStates" size="1" onchange="updateAllStates();" onkeyup="resize(this);">}
+<br>Halting states: H = {<input onfocus="showExample('h<br>q2, q4');" type="text" id="haltingStates" size="1" onchange="updateAllStates();" onkeyup="resize(this);">}
+</td><td valign="middle">
+All states: K = {<span id="allStates"></span>}
+</td></tr>
+</table>
+<br><table border="1"><tbody id="transitions">
+	<tr><td colspan="4">transitions</td></tr>
+	<tr><td>q</td><td>&sigma;</td><td>&delta;(q, &sigma;)</td></tr>
+</tbody></table>
+<p>Initial configuration: (<input onfocus="showExample('s<br>q0');" type="text" id="initialState" size="1" onkeyup="resize(this)">,
+	&gt;<input onfocus="showExample('#a<br>a#b#');" type="text" id="initialRibbonLeft" size="1" onkeyup="resize(this)" onchange="updateTransitionResults();">,
+	<input onfocus="showExample('##a<br>bbb');" type="text" id="initialRibbonRight" size="1" onkeyup="resize(this)" onchange="updateTransitionResults();">)
+</p>
+<p>Maximum number of steps: <input onfocus="showExample('10<br>100');" type="text" id="maximumStepCount" size="3" onkeyup="resize(this)" value="100" onchange="updateTransitionResults();"></p>
+<p><input type="button" value="GO!"></p>
+<p>Transition results:<span id="transitionResults"></span></p>
+</body>
+</html>
